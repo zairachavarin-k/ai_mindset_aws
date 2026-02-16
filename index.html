@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Route Optimizer Dashboard - KPI</title>
+  
+  <!-- External Libraries -->
+  <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="static/css/styles.css?v=5">
+</head>
+<body>
+  <!-- Top Cards Row -->
+  <div class="top-cards">
+    <div class="card">
+      <div class="card-header">Trucks Out</div>
+      <div class="card-content">
+        <div class="card-value" id="trucksOut">0</div>
+        <div class="card-label">On Route</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">Trucks in Depot</div>
+      <div class="card-content">
+        <div class="card-value" id="trucksInDepot">5</div>
+        <div class="card-label">Available</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">Completion Time</div>
+      <div class="card-content">
+        <div class="card-value" id="completionTime">--</div>
+        <div class="card-label">Minutes</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">Total Value</div>
+      <div class="card-content">
+        <div class="card-value" id="totalValue">$0</div>
+        <div class="card-label">To Collect</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">View Truck</div>
+      <div class="card-content">
+        <select id="truckSelector" class="truck-selector">
+          <option value="all">All Trucks</option>
+          <option value="0">Truck 1</option>
+          <option value="1">Truck 2</option>
+          <option value="2">Truck 3</option>
+          <option value="3">Truck 4</option>
+          <option value="4">Truck 5</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  
+  <div class="dashboard">
+    <!-- Left Column: KPI Panels -->
+    <div class="left-column">
+      <!-- Delivery Status -->
+      <div class="panel kpi-panel">
+        <div class="panel-header">Delivery Status</div>
+        <div class="panel-content">
+          <div id="deliveryStatus" class="kpi-content">
+            <div class="status-item">
+              <div class="status-label">Completed</div>
+              <div class="status-bar">
+                <div class="status-bar-fill completed" style="width: 0%"></div>
+              </div>
+              <div class="status-value">0</div>
+            </div>
+            <div class="status-item">
+              <div class="status-label">In Progress</div>
+              <div class="status-bar">
+                <div class="status-bar-fill in-progress" style="width: 0%"></div>
+              </div>
+              <div class="status-value">0</div>
+            </div>
+            <div class="status-item">
+              <div class="status-label">Pending</div>
+              <div class="status-bar">
+                <div class="status-bar-fill pending" style="width: 0%"></div>
+              </div>
+              <div class="status-value">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Completed Assignments Gauge -->
+      <div class="panel kpi-panel">
+        <div class="panel-header">Completed Assignments</div>
+        <div class="panel-content">
+          <div class="chart-container">
+            <canvas id="completedGauge"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Assignment Status -->
+      <div class="panel kpi-panel">
+        <div class="panel-header">Money Collection Status</div>
+        <div class="panel-content">
+          <div class="chart-container">
+            <canvas id="assignmentChart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Assignment Priority -->
+      <div class="panel kpi-panel">
+        <div class="panel-header">Assignment Priority</div>
+        <div class="panel-content">
+          <div class="chart-container">
+            <canvas id="priorityChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Right Column: Map -->
+    <div class="right-column">
+      <div class="panel map-panel">
+        <div id="map"></div>
+        <div id="controls">
+          <div class="info-box">
+            5 trucks, 14 destinations<br>
+            ACO + AWS Optimization<br>
+            <small>ACO assigns, AWS optimizes routes</small>
+          </div>
+          <button id="optimizeBtn">Optimize Routes</button>
+          <button id="viewExportsBtn" style="background: #6c757d;">📁 View Saved Routes</button>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px;">
+            <button id="startSimBtn" disabled style="background: #28a745; margin: 0;">▶ Start Sim</button>
+            <button id="stopSimBtn" disabled style="background: #dc3545; margin: 0;">⏹ Stop</button>
+          </div>
+          <div id="results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Floating Chat Button -->
+  <button id="chatButton" class="chat-button" title="Open Chat">
+    💬
+  </button>
+  
+  <!-- Chat Window -->
+  <div id="chatWindow" class="chat-window">
+    <div class="chat-header">
+      <span>Chat Assistant</span>
+      <button id="closeChatBtn" class="close-chat-btn">✕</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-message bot-message">
+        <div class="message-content">Hello! How can I help you today?</div>
+      </div>
+    </div>
+    <div class="chat-input-container">
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type your message..." />
+      <button id="sendChatBtn" class="send-chat-btn">Send</button>
+    </div>
+  </div>
+  
+  <!-- External Libraries -->
+  <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Application Scripts -->
+  <script src="static/js/config.local.js?v=1"></script>
+  <script src="static/js/config.js?v=5"></script>
+  <script src="static/js/map.js?v=2"></script>
+  <script src="static/js/charts.js?v=4"></script>
+  <script src="static/js/cards.js?v=2"></script>
+  <script src="static/js/chat.js?v=1"></script>
+  <script src="static/js/simulation.js?v=6"></script>
+  <script src="static/js/export.js?v=2"></script>
+  <script src="static/js/optimizer.js?v=3"></script>
+  <script src="static/js/app.js?v=2"></script>
+</body>
+</html>

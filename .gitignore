@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# AWS Credentials
+.aws/
+*.pem
+*.key
+
+# Local Configuration (API Keys)
+static/js/config.local.js
+
+# Generated Data
+data/
+*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
