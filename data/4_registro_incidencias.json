@@ -1,0 +1,177 @@
+[
+    {
+        "incidente_id": "INC-901",
+        "fecha_hora_reporte": "2026-02-17 14:15:00",
+        "truck_id": "1",
+        "tipo_incidente": "Choque / Colisión Grave",
+        "nivel_gravedad": "Crítico",
+        "ubicacion_gps": {
+            "lat": 19.4345,
+            "lon": -99.1410
+        },
+        "sensor_telemetria_g": 8.45,
+        "descripcion_evento": "Impacto lateral severo. Daño estructural en carga frágil. Airbags activados.",
+        "inventario_afectado": [
+            {
+                "sku": "MED-002",
+                "producto": "Monitor Médico 4K",
+                "categoria": "Salud",
+                "cantidad": 5,
+                "valor_unitario_usd": 1200,
+                "estado_bien": "Pantalla Fracturada",
+                "prioridad_reposicion": "Crítica"
+            },
+            {
+                "sku": "TEC-830-B",
+                "producto": "Cámara Smart Mediumaquamarine",
+                "categoria": "Tecnología",
+                "cantidad": 3,
+                "valor_unitario_usd": 1457,
+                "estado_bien": "Daño por Aplastamiento",
+                "prioridad_reposicion": "Crítica"
+            }
+        ],
+        "valor_total_perdida_estimada": 10371,
+        "accion_recomendada_ia": "Contactar emergencias. Iniciar reposición inmediata de equipo médico desde Pasillo-C-1."
+    },
+    {
+        "incidente_id": "INC-772",
+        "fecha_hora_reporte": "2026-02-17 18:45:00",
+        "truck_id": "4",
+        "tipo_incidente": "Robo con Violencia",
+        "nivel_gravedad": "Crítico",
+        "ubicacion_gps": {
+            "lat": 19.4310,
+            "lon": -99.1770
+        },
+        "sensor_telemetria_g": 0.2,
+        "descripcion_evento": "Detención forzada. Robo selectivo de tecnología de alto valor.",
+        "inventario_afectado": [
+            {
+                "sku": "TEC-001",
+                "producto": "Laptop Gaming X1 Ultra",
+                "categoria": "Tecnología",
+                "cantidad": 15,
+                "valor_unitario_usd": 2500,
+                "estado_bien": "Robado",
+                "prioridad_reposicion": "Crítica"
+            },
+            {
+                "sku": "TEC-158-C",
+                "producto": "Drone Pro Bisque",
+                "categoria": "Tecnología",
+                "cantidad": 8,
+                "valor_unitario_usd": 1363,
+                "estado_bien": "Robado",
+                "prioridad_reposicion": "Crítica"
+            },
+            {
+                "sku": "TEC-676-A",
+                "producto": "Tablet Smart Yellow",
+                "categoria": "Tecnología",
+                "cantidad": 10,
+                "valor_unitario_usd": 532,
+                "estado_bien": "Robado",
+                "prioridad_reposicion": "Alta"
+            }
+        ],
+        "valor_total_perdida_estimada": 53724,
+        "accion_recomendada_ia": "Bloqueo remoto. Reporte policial con números de serie de Laptops y Drones."
+    },
+    {
+        "incidente_id": "INC-555",
+        "fecha_hora_reporte": "2026-02-17 11:10:00",
+        "truck_id": "2",
+        "tipo_incidente": "Falla Cadena de Frío",
+        "nivel_gravedad": "Alto",
+        "ubicacion_gps": {
+            "lat": 19.4850,
+            "lon": -99.1200
+        },
+        "sensor_telemetria_g": 2.1,
+        "descripcion_evento": "Falla en refrigeración tras colisión leve. Temperatura crítica superada.",
+        "inventario_afectado": [
+            {
+                "sku": "FAR-001",
+                "producto": "Vacunas COVID (Lote A)",
+                "categoria": "Farma",
+                "cantidad": 4,
+                "valor_unitario_usd": 5000,
+                "estado_bien": "Comprometido (Ruptura Térmica)",
+                "prioridad_reposicion": "Crítica - Vida Humana"
+            }
+        ],
+        "valor_total_perdida_estimada": 20000,
+        "accion_recomendada_ia": "Prioridad Sanitaria: Transferencia inmediata a unidad refrigerada cercana."
+    },
+    {
+        "incidente_id": "INC-860",
+        "fecha_hora_reporte": "2026-02-17 17:00:00",
+        "truck_id": "3",
+        "tipo_incidente": "Robo Parcial / Saqueo",
+        "nivel_gravedad": "Medio",
+        "ubicacion_gps": {
+            "lat": 19.4280,
+            "lon": -99.2140
+        },
+        "sensor_telemetria_g": 0.5,
+        "descripcion_evento": "Robo hormiga aprovechando semáforo. Mercancía de fácil acceso sustraída.",
+        "inventario_afectado": [
+            {
+                "sku": "AUT-910-A",
+                "producto": "Filtro Cerámico Skyblue",
+                "categoria": "Automotriz",
+                "cantidad": 12,
+                "valor_unitario_usd": 33,
+                "estado_bien": "Robado",
+                "prioridad_reposicion": "Baja"
+            },
+            {
+                "sku": "OFI-500-A",
+                "producto": "Bolígrafos Ejecutivo Slateblue",
+                "categoria": "Oficina",
+                "cantidad": 20,
+                "valor_unitario_usd": 49,
+                "estado_bien": "Robado",
+                "prioridad_reposicion": "Baja"
+            }
+        ],
+        "valor_total_perdida_estimada": 1376,
+        "accion_recomendada_ia": "Continuar ruta. Levantar ticket de seguro menor al finalizar turno."
+    },
+    {
+        "incidente_id": "INC-384",
+        "fecha_hora_reporte": "2026-02-17 19:30:00",
+        "truck_id": "2",
+        "tipo_incidente": "Falla Mecánica Mayor",
+        "nivel_gravedad": "Crítico",
+        "ubicacion_gps": {
+            "lat": 19.4960,
+            "lon": -99.1730
+        },
+        "sensor_telemetria_g": 4.91,
+        "descripcion_evento": "Colapso de eje trasero por sobrecarga. Daño a maquinaria pesada.",
+        "inventario_afectado": [
+            {
+                "sku": "IND-001",
+                "producto": "Motor Eléctrico Industrial",
+                "categoria": "Industrial",
+                "cantidad": 1,
+                "valor_unitario_usd": 3000,
+                "estado_bien": "Daño Estructural",
+                "prioridad_reposicion": "Crítica"
+            },
+             {
+                "sku": "AUT-561-B",
+                "producto": "Frenos Hidráulico Olivedrab",
+                "categoria": "Automotriz",
+                "cantidad": 5,
+                "valor_unitario_usd": 109,
+                "estado_bien": "Aplastamiento",
+                "prioridad_reposicion": "Baja"
+            }
+        ],
+        "valor_total_perdida_estimada": 3545,
+        "accion_recomendada_ia": "Enviar grúa de plataforma. Reasignar camión TRUCK-004 para recoger carga restante."
+    }
+]
