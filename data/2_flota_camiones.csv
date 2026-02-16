@@ -1,0 +1,5 @@
+truck_id,placas,conductor,horario_servicio,capacidad_max_ton,poliza_seguro,nivel_fatiga_conductor,ultimo_mantenimiento
+1,UIU 401,Lic. Débora Padilla,09:00 - 21:00,10.0,POL-53579-MX,Alto,2025-09-01
+2,KCZ0944,Esmeralda Sauceda Escobar,09:00 - 21:00,10.0,POL-26016-MX,Bajo,2025-11-23
+3,0CJY 41,Ing. Ernesto Rosado,09:00 - 21:00,5.0,POL-66916-MX,Medio,2026-01-16
+4,MQJ 665, Alfredo Villarreal,09:00 - 21:00,10.0,POL-24274-MX,Medio,2025-10-18
