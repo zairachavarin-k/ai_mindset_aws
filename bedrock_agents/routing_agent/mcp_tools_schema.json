@@ -1,0 +1,339 @@
+{
+  "gateway_name": "smartsupply-routing-gateway",
+  "description": "Herramientas MCP especializadas para el agente de ruteo",
+  "tools": [
+    {
+      "name": "consultar_trafico",
+      "description": "Consulta el estado del tráfico actual en una ruta específica",
+      "lambda_function": "consultar_trafico",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "origen": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "required": ["lat", "lon"]
+          },
+          "destino": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "required": ["lat", "lon"]
+          }
+        },
+        "required": ["origen", "destino"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "nivel_trafico": {
+            "type": "string",
+            "enum": ["bajo", "moderado", "alto", "muy_alto"]
+          },
+          "factor_tiempo": {
+            "type": "number",
+            "description": "Multiplicador de tiempo (1.0 = normal, 1.5 = 50% más lento)"
+          },
+          "incidentes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string"},
+                "ubicacion": {"type": "string"},
+                "impacto": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "consultar_clima",
+      "description": "Consulta las condiciones climáticas actuales y pronóstico",
+      "lambda_function": "consultar_clima",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "ubicacion": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "required": ["lat", "lon"]
+          },
+          "hora_estimada": {
+            "type": "string",
+            "description": "Hora estimada de llegada en formato ISO8601"
+          }
+        },
+        "required": ["ubicacion"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "condicion": {
+            "type": "string",
+            "enum": ["despejado", "nublado", "lluvia_ligera", "lluvia_fuerte", "tormenta", "nieve"]
+          },
+          "temperatura": {"type": "number"},
+          "factor_tiempo": {
+            "type": "number",
+            "description": "Multiplicador de tiempo por clima (1.0 = normal, 1.15 = lluvia)"
+          },
+          "visibilidad_km": {"type": "number"},
+          "recomendaciones": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "name": "validar_ventanas_entrega",
+      "description": "Valida si una hora de llegada cumple con la ventana de entrega del cliente",
+      "lambda_function": "validar_ventanas_entrega",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "stop_id": {"type": "string"},
+          "hora_llegada_estimada": {
+            "type": "string",
+            "description": "Hora estimada en formato HH:MM"
+          }
+        },
+        "required": ["stop_id", "hora_llegada_estimada"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "valida": {"type": "boolean"},
+          "ventana_inicio": {"type": "string"},
+          "ventana_fin": {"type": "string"},
+          "minutos_antes_ventana": {"type": "number"},
+          "minutos_despues_ventana": {"type": "number"},
+          "penalizacion": {
+            "type": "number",
+            "description": "Penalización en minutos si está fuera de ventana"
+          }
+        }
+      }
+    },
+    {
+      "name": "calcular_distancia_matriz",
+      "description": "Calcula matriz de distancias entre múltiples puntos",
+      "lambda_function": "calcular_distancia_matriz",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "puntos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "lat": {"type": "number"},
+                "lon": {"type": "number"}
+              }
+            },
+            "description": "Lista de puntos para calcular distancias"
+          }
+        },
+        "required": ["puntos"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "matriz_distancias": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {"type": "number"}
+            },
+            "description": "Matriz NxN de distancias en km"
+          },
+          "matriz_tiempos": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {"type": "number"}
+            },
+            "description": "Matriz NxN de tiempos en minutos"
+          }
+        }
+      }
+    },
+    {
+      "name": "optimizar_ruta_tsp",
+      "description": "Aplica algoritmo TSP para optimizar orden de paradas",
+      "lambda_function": "optimizar_ruta_tsp",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "matriz_distancias": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {"type": "number"}
+            }
+          },
+          "punto_inicio": {
+            "type": "integer",
+            "description": "Índice del punto de inicio"
+          },
+          "restricciones": {
+            "type": "object",
+            "properties": {
+              "ventanas_entrega": {"type": "array"},
+              "prioridades": {"type": "array"}
+            }
+          }
+        },
+        "required": ["matriz_distancias", "punto_inicio"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "orden_optimo": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "description": "Orden óptimo de visita (índices)"
+          },
+          "distancia_total": {"type": "number"},
+          "mejora_porcentaje": {
+            "type": "number",
+            "description": "Porcentaje de mejora vs orden original"
+          }
+        }
+      }
+    },
+    {
+      "name": "calcular_tiempo_real",
+      "description": "Calcula tiempo real de viaje considerando todos los factores",
+      "lambda_function": "calcular_tiempo_real",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "distancia_km": {"type": "number"},
+          "velocidad_base_kmh": {"type": "number"},
+          "factor_trafico": {"type": "number"},
+          "factor_clima": {"type": "number"},
+          "tipo_via": {
+            "type": "string",
+            "enum": ["autopista", "carretera", "ciudad"]
+          }
+        },
+        "required": ["distancia_km"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "tiempo_minutos": {"type": "number"},
+          "velocidad_efectiva_kmh": {"type": "number"},
+          "factores_aplicados": {
+            "type": "object",
+            "properties": {
+              "trafico": {"type": "number"},
+              "clima": {"type": "number"},
+              "tipo_via": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "considerar_fatiga_conductor",
+      "description": "Calcula descansos necesarios según horas de trabajo del conductor",
+      "lambda_function": "considerar_fatiga_conductor",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "conductor": {"type": "string"},
+          "tiempo_ruta_minutos": {"type": "number"},
+          "hora_inicio": {"type": "string"},
+          "nivel_fatiga_actual": {
+            "type": "string",
+            "enum": ["Bajo", "Medio", "Alto"]
+          }
+        },
+        "required": ["conductor", "tiempo_ruta_minutos"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "descansos_necesarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "despues_parada": {"type": "integer"},
+                "duracion_minutos": {"type": "number"},
+                "motivo": {"type": "string"}
+              }
+            }
+          },
+          "tiempo_total_descansos": {"type": "number"},
+          "puede_completar_ruta": {"type": "boolean"},
+          "recomendaciones": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "name": "validar_restricciones_ruta",
+      "description": "Valida que la ruta cumple con todas las restricciones",
+      "lambda_function": "validar_restricciones_ruta",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "ruta": {
+            "type": "object",
+            "properties": {
+              "paradas": {"type": "array"},
+              "tiempo_total_minutos": {"type": "number"},
+              "distancia_total_km": {"type": "number"}
+            }
+          },
+          "restricciones": {
+            "type": "object",
+            "properties": {
+              "max_horas_trabajo": {"type": "number"},
+              "ventanas_entrega": {"type": "array"},
+              "capacidad_camion": {"type": "number"}
+            }
+          }
+        },
+        "required": ["ruta", "restricciones"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "valida": {"type": "boolean"},
+          "violaciones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string"},
+                "descripcion": {"type": "string"},
+                "severidad": {"type": "string"}
+              }
+            }
+          },
+          "sugerencias": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  ]
+}

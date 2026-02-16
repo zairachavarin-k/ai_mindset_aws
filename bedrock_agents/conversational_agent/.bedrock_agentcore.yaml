@@ -1,0 +1,20 @@
+name: smartsupply-conversational-agent
+description: Agente conversacional para operadores de SmartSupply - consultas, aprobaciones y comandos
+version: 1.0.0
+
+model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
+
+runtime:
+  mode: serverless
+  timeout: 60  # 1 minuto suficiente para consultas
+  memory: 1024
+
+memory:
+  mode: STM_AND_LTM  # Short-term (sesión) y Long-term (histórico)
+  
+observability:
+  tracing: true
+  metrics: true
+  logs:
+    level: INFO
+    retention_days: 30

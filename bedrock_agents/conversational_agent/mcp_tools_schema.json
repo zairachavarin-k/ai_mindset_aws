@@ -1,0 +1,333 @@
+{
+  "gateway_name": "smartsupply-conversational-gateway",
+  "description": "Herramientas MCP para el agente conversacional",
+  "tools": [
+    {
+      "name": "consultar_estado_ruta",
+      "description": "Consulta el estado actual de una ruta específica con todos sus detalles",
+      "lambda_function": "consultar_estado_ruta_conversacional",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "truck_id": {
+            "type": "string",
+            "description": "ID del camión (ej: '1', '2', '3')"
+          },
+          "fecha": {
+            "type": "string",
+            "description": "Fecha de la ruta en formato YYYY-MM-DD (opcional, default: hoy)"
+          }
+        },
+        "required": ["truck_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "truck_id": {"type": "string"},
+          "fecha": {"type": "string"},
+          "estado": {
+            "type": "string",
+            "enum": ["En ruta", "Detenido", "Completado", "Incidente"]
+          },
+          "paradas_totales": {"type": "integer"},
+          "paradas_completadas": {"type": "integer"},
+          "paradas_pendientes": {"type": "integer"},
+          "proxima_parada": {
+            "type": "object",
+            "properties": {
+              "stop_id": {"type": "string"},
+              "cliente": {"type": "string"},
+              "eta": {"type": "string"},
+              "ventana_entrega": {"type": "string"}
+            }
+          },
+          "ubicacion_actual": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            }
+          },
+          "conductor": {"type": "string"},
+          "nivel_fatiga": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "consultar_incidentes",
+      "description": "Consulta incidentes con filtros opcionales",
+      "lambda_function": "consultar_incidentes_conversacional",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "incident_id": {
+            "type": "string",
+            "description": "ID específico del incidente (opcional)"
+          },
+          "truck_id": {
+            "type": "string",
+            "description": "Filtrar por camión (opcional)"
+          },
+          "tipo_incidente": {
+            "type": "string",
+            "description": "Filtrar por tipo (opcional)"
+          },
+          "estado": {
+            "type": "string",
+            "enum": ["Pendiente", "En proceso", "Resuelto"],
+            "description": "Filtrar por estado (opcional)"
+          },
+          "fecha_desde": {
+            "type": "string",
+            "description": "Fecha inicio en formato YYYY-MM-DD (opcional)"
+          },
+          "fecha_hasta": {
+            "type": "string",
+            "description": "Fecha fin en formato YYYY-MM-DD (opcional)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Número máximo de resultados (default: 10)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "incidentes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "incident_id": {"type": "string"},
+                "truck_id": {"type": "string"},
+                "tipo_incidente": {"type": "string"},
+                "nivel_gravedad": {"type": "string"},
+                "estado": {"type": "string"},
+                "timestamp": {"type": "string"},
+                "ubicacion_gps": {"type": "object"},
+                "descripcion": {"type": "string"}
+              }
+            }
+          },
+          "total": {"type": "integer"}
+        }
+      }
+    },
+    {
+      "name": "consultar_inventario",
+      "description": "Consulta inventario del almacén con filtros opcionales",
+      "lambda_function": "consultar_inventario_conversacional",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "SKU específico (opcional)"
+          },
+          "categoria": {
+            "type": "string",
+            "enum": ["Farma", "Salud", "Tecnología", "Industrial"],
+            "description": "Filtrar por categoría (opcional)"
+          },
+          "solo_disponibles": {
+            "type": "boolean",
+            "description": "Solo mostrar items con stock disponible (default: false)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {"type": "string"},
+                "nombre": {"type": "string"},
+                "categoria": {"type": "string"},
+                "cantidad_total": {"type": "integer"},
+                "cantidad_disponible": {"type": "integer"},
+                "cantidad_en_ruta": {"type": "integer"},
+                "ubicacion_pasillo": {"type": "string"}
+              }
+            }
+          },
+          "total_items": {"type": "integer"}
+        }
+      }
+    },
+    {
+      "name": "consultar_plan_reasignacion",
+      "description": "Obtiene el plan de reasignación generado por el Agente Autónomo para un incidente",
+      "lambda_function": "consultar_plan_reasignacion",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "incident_id": {
+            "type": "string",
+            "description": "ID del incidente"
+          }
+        },
+        "required": ["incident_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "incident_id": {"type": "string"},
+          "plan_id": {"type": "string"},
+          "timestamp_generacion": {"type": "string"},
+          "estado": {
+            "type": "string",
+            "enum": ["Pendiente aprobación", "Aprobado", "Rechazado", "Ejecutado"]
+          },
+          "incidente": {
+            "type": "object",
+            "properties": {
+              "truck_id": {"type": "string"},
+              "tipo": {"type": "string"},
+              "gravedad": {"type": "string"}
+            }
+          },
+          "solucion": {
+            "type": "object",
+            "properties": {
+              "camion_reemplazo": {"type": "string"},
+              "distancia_km": {"type": "number"},
+              "paradas_reasignadas": {"type": "integer"},
+              "impacto_tiempo_minutos": {"type": "integer"},
+              "clientes_afectados": {"type": "array"}
+            }
+          },
+          "justificacion": {"type": "string"},
+          "puede_aprobar": {"type": "boolean"}
+        }
+      }
+    },
+    {
+      "name": "aprobar_reasignacion",
+      "description": "Aprueba o rechaza un plan de reasignación. Si se aprueba, ejecuta el plan automáticamente.",
+      "lambda_function": "aprobar_reasignacion",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "ID del plan de reasignación"
+          },
+          "aprobado": {
+            "type": "boolean",
+            "description": "true para aprobar, false para rechazar"
+          },
+          "operador": {
+            "type": "string",
+            "description": "Nombre o ID del operador que aprueba/rechaza"
+          },
+          "comentarios": {
+            "type": "string",
+            "description": "Comentarios opcionales del operador"
+          }
+        },
+        "required": ["plan_id", "aprobado", "operador"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "plan_id": {"type": "string"},
+          "estado": {"type": "string"},
+          "timestamp": {"type": "string"},
+          "acciones_ejecutadas": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "mensaje": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "ejecutar_comando",
+      "description": "Ejecuta comandos operacionales en el sistema",
+      "lambda_function": "ejecutar_comando",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "comando": {
+            "type": "string",
+            "enum": ["cancelar_parada", "marcar_incidente_resuelto", "actualizar_nivel_fatiga"],
+            "description": "Tipo de comando a ejecutar"
+          },
+          "parametros": {
+            "type": "object",
+            "description": "Parámetros específicos del comando",
+            "properties": {
+              "truck_id": {"type": "string"},
+              "stop_id": {"type": "string"},
+              "incident_id": {"type": "string"},
+              "nivel_fatiga": {"type": "string"}
+            }
+          },
+          "operador": {
+            "type": "string",
+            "description": "Nombre o ID del operador que ejecuta el comando"
+          }
+        },
+        "required": ["comando", "parametros", "operador"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "comando": {"type": "string"},
+          "resultado": {"type": "string"},
+          "timestamp": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "generar_reporte",
+      "description": "Genera reportes en formato CSV o JSON",
+      "lambda_function": "generar_reporte",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tipo_reporte": {
+            "type": "string",
+            "enum": ["incidentes", "performance_flota", "inventario", "tiempos_respuesta"],
+            "description": "Tipo de reporte a generar"
+          },
+          "formato": {
+            "type": "string",
+            "enum": ["csv", "json"],
+            "description": "Formato del reporte (default: csv)"
+          },
+          "fecha_desde": {
+            "type": "string",
+            "description": "Fecha inicio en formato YYYY-MM-DD (opcional)"
+          },
+          "fecha_hasta": {
+            "type": "string",
+            "description": "Fecha fin en formato YYYY-MM-DD (opcional)"
+          },
+          "filtros": {
+            "type": "object",
+            "description": "Filtros adicionales específicos del reporte"
+          }
+        },
+        "required": ["tipo_reporte"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "reporte_id": {"type": "string"},
+          "url_descarga": {"type": "string"},
+          "formato": {"type": "string"},
+          "registros_totales": {"type": "integer"},
+          "timestamp": {"type": "string"}
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,359 @@
+{
+  "gateway_name": "smartsupply-mcp-gateway",
+  "description": "Herramientas MCP para el agente autónomo SmartSupply",
+  "tools": [
+    {
+      "name": "invocar_agente_ruteo",
+      "description": "Invoca al agente especializado de ruteo para calcular rutas óptimas considerando tráfico, clima y restricciones en tiempo real",
+      "lambda_function": "invocar_agente_ruteo",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "paradas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stop_id": {"type": "string"},
+                "lat": {"type": "number"},
+                "lon": {"type": "number"},
+                "cliente": {"type": "string"},
+                "ventana_inicio": {"type": "string"},
+                "ventana_fin": {"type": "string"}
+              }
+            },
+            "description": "Lista de paradas a optimizar"
+          },
+          "origen": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "description": "Punto de inicio (almacén o posición actual)"
+          },
+          "truck_id": {
+            "type": "string",
+            "description": "ID del camión"
+          },
+          "conductor": {
+            "type": "string",
+            "description": "Nombre del conductor"
+          },
+          "restricciones": {
+            "type": "object",
+            "properties": {
+              "max_horas_trabajo": {"type": "number"},
+              "nivel_fatiga_actual": {"type": "string"},
+              "capacidad_camion_ton": {"type": "number"}
+            }
+          }
+        },
+        "required": ["paradas", "origen", "truck_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ruta_optimizada": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orden": {"type": "integer"},
+                "stop_id": {"type": "string"},
+                "hora_llegada": {"type": "string"},
+                "tiempo_desde_anterior": {"type": "number"},
+                "distancia_desde_anterior_km": {"type": "number"}
+              }
+            }
+          },
+          "metricas": {
+            "type": "object",
+            "properties": {
+              "distancia_total_km": {"type": "number"},
+              "tiempo_total_minutos": {"type": "number"},
+              "ahorro_vs_original_km": {"type": "number"},
+              "ahorro_vs_original_minutos": {"type": "number"}
+            }
+          },
+          "validacion": {
+            "type": "object",
+            "properties": {
+              "cumple_ventanas": {"type": "boolean"},
+              "cumple_horas_trabajo": {"type": "boolean"},
+              "violaciones": {"type": "array"}
+            }
+          },
+          "justificacion": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "consultar_ruta_afectada",
+      "description": "Consulta la ruta completa del camión afectado por un incidente",
+      "lambda_function": "consultar_ruta_afectada",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "truck_id": {
+            "type": "string",
+            "description": "ID del camión (1, 2, 3, o 4)"
+          }
+        },
+        "required": ["truck_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "truck_id": {"type": "string"},
+          "conductor": {"type": "string"},
+          "paradas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stop_id": {"type": "string"},
+                "cliente": {"type": "string"},
+                "items_a_entregar": {"type": "array"},
+                "estado": {"type": "string"}
+              }
+            }
+          },
+          "fecha_ruta": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "consultar_flota_disponible",
+      "description": "Consulta la lista de camiones disponibles con su capacidad y nivel de fatiga",
+      "lambda_function": "consultar_flota_disponible",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "truck_id": {"type": "string"},
+            "conductor": {"type": "string"},
+            "capacidad_max_ton": {"type": "number"},
+            "nivel_fatiga": {"type": "string"},
+            "ubicacion_actual": {
+              "type": "object",
+              "properties": {
+                "lat": {"type": "number"},
+                "lon": {"type": "number"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "consultar_inventario_almacen",
+      "description": "Consulta la disponibilidad de productos en el almacén",
+      "lambda_function": "consultar_inventario_almacen",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "skus": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Lista de SKUs a consultar"
+          }
+        },
+        "required": ["skus"]
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sku": {"type": "string"},
+            "nombre_producto": {"type": "string"},
+            "cantidad_disponible_almacen": {"type": "integer"},
+            "es_fragil": {"type": "boolean"},
+            "prioridad_negocio": {"type": "string"},
+            "ubicacion_pasillo": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "name": "calcular_distancia",
+      "description": "Calcula la distancia en kilómetros entre dos puntos GPS",
+      "lambda_function": "calcular_distancia",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "origen": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "required": ["lat", "lon"]
+          },
+          "destino": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "required": ["lat", "lon"]
+          }
+        },
+        "required": ["origen", "destino"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "distancia_km": {"type": "number"}
+        }
+      }
+    },
+    {
+      "name": "calcular_ruta_optimizada",
+      "description": "Genera una ruta optimizada para un conjunto de paradas usando algoritmos TSP/VRP",
+      "lambda_function": "calcular_ruta_optimizada",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "paradas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stop_id": {"type": "string"},
+                "latitud": {"type": "number"},
+                "longitud": {"type": "number"}
+              }
+            },
+            "description": "Lista de paradas a optimizar"
+          },
+          "origen": {
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lon": {"type": "number"}
+            },
+            "description": "Punto de inicio (almacén o posición actual)"
+          }
+        },
+        "required": ["paradas", "origen"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ruta_optimizada": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stop_id": {"type": "string"},
+                "orden": {"type": "integer"},
+                "hora_estimada": {"type": "string"}
+              }
+            }
+          },
+          "distancia_total_km": {"type": "number"},
+          "tiempo_estimado_minutos": {"type": "number"},
+          "ahorro_vs_ruta_original": {"type": "number"}
+        }
+      }
+    },
+    {
+      "name": "actualizar_ruta_s3",
+      "description": "Escribe una ruta actualizada en S3 con versionamiento",
+      "lambda_function": "actualizar_ruta_s3",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "truck_id": {
+            "type": "string",
+            "description": "ID del camión"
+          },
+          "nueva_ruta": {
+            "type": "object",
+            "description": "Objeto JSON con la ruta completa actualizada"
+          }
+        },
+        "required": ["truck_id", "nueva_ruta"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "s3_path": {"type": "string"},
+          "version_id": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "registrar_incidencia",
+      "description": "Registra una incidencia en S3 y DynamoDB con métricas de tiempo de respuesta",
+      "lambda_function": "registrar_incidencia",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "incidente": {
+            "type": "object",
+            "properties": {
+              "incidente_id": {"type": "string"},
+              "truck_id": {"type": "string"},
+              "tipo_incidente": {"type": "string"},
+              "nivel_gravedad": {"type": "string"},
+              "ubicacion_gps": {"type": "object"},
+              "inventario_afectado": {"type": "array"},
+              "plan_reasignacion": {"type": "object"},
+              "tiempo_respuesta_segundos": {"type": "number"}
+            }
+          }
+        },
+        "required": ["incidente"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "incidente_id": {"type": "string"},
+          "s3_path": {"type": "string"},
+          "dynamodb_written": {"type": "boolean"}
+        }
+      }
+    },
+    {
+      "name": "enviar_notificacion_cliente",
+      "description": "Envía notificación a cliente vía Amazon Connect con priorización por criticidad",
+      "lambda_function": "enviar_notificacion_cliente",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "cliente_id": {
+            "type": "string",
+            "description": "ID del cliente a notificar"
+          },
+          "mensaje": {
+            "type": "string",
+            "description": "Mensaje personalizado con nuevo horario y motivo"
+          },
+          "prioridad": {
+            "type": "string",
+            "enum": ["Crítica", "Alta", "Baja"],
+            "description": "Prioridad de la notificación"
+          }
+        },
+        "required": ["cliente_id", "mensaje", "prioridad"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "contact_id": {"type": "string"},
+          "retry_scheduled": {"type": "boolean"}
+        }
+      }
+    }
+  ]
+}

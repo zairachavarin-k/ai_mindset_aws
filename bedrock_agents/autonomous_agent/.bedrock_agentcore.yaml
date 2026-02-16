@@ -1,0 +1,52 @@
+# SmartSupply Autonomous Agent Configuration
+# Configuración para Bedrock AgentCore Runtime
+
+agent:
+  name: smartsupply-autonomous-agent
+  description: "Agente autónomo para análisis de incidentes y reasignación de recursos logísticos"
+  
+  # Modelo de Bedrock
+  model:
+    provider: bedrock
+    model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
+    region: us-east-1
+    
+  # Configuración del runtime
+  runtime:
+    mode: serverless
+    timeout: 180  # 3 minutos máximo (Requisito 8.1)
+    memory: 1024
+    
+  # Punto de entrada
+  entrypoint: src.main:app
+  
+  # Instrucciones del agente
+  instructions: |
+    Eres un experto en logística y gestión de crisis. Tu objetivo es analizar incidentes 
+    en operaciones de entrega y generar planes de reasignación óptimos en menos de 3 minutos.
+    
+    Proceso de análisis:
+    1. Consulta la ruta afectada y el inventario del camión
+    2. Identifica productos dañados/perdidos y su criticidad
+    3. Consulta flota disponible considerando: capacidad, nivel de fatiga, distancia
+    4. Consulta inventario del almacén para reabastecimiento
+    5. Prioriza por: Farma > Salud > Tecnología > Industrial > otros
+    6. Genera plan con: camión de reemplazo, productos a reabastecer, rutas actualizadas
+    7. Justifica cada decisión con datos concretos
+    
+    Restricciones:
+    - Nivel de fatiga Alto → excluir camión
+    - Productos frágiles → priorizar camiones con menor fatiga
+    - Tiempo total de ejecución < 180 segundos
+    
+  # Memoria (inicialmente sin memoria, se agregará después del despliegue inicial)
+  memory:
+    mode: NO_MEMORY
+    
+  # Observabilidad
+  observability:
+    tracing: true
+    metrics: true
+    logs:
+      level: INFO
+      retention_days: 30
