@@ -141,6 +141,21 @@
             <button id="startSimBtn" disabled style="background: #28a745; margin: 0;">▶ Start Sim</button>
             <button id="stopSimBtn" disabled style="background: #dc3545; margin: 0;">⏹ Stop</button>
           </div>
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 11px; color: #aaa; margin-bottom: 5px;">Redirect Controls:</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+              <button id="redirectAllToDepotBtn" disabled style="background: #FFA500; margin: 0; font-size: 11px;">🏠 All to Depot</button>
+              <button id="redirectCustomBtn" disabled style="background: #17a2b8; margin: 0; font-size: 11px;">📍 Custom</button>
+            </div>
+            <select id="redirectTruckSelector" disabled style="width: 100%; margin-top: 5px; padding: 5px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 4px; font-size: 11px;">
+              <option value="">Select truck to redirect...</option>
+              <option value="0">Truck 1 → Depot</option>
+              <option value="1">Truck 2 → Depot</option>
+              <option value="2">Truck 3 → Depot</option>
+              <option value="3">Truck 4 → Depot</option>
+              <option value="4">Truck 5 → Depot</option>
+            </select>
+          </div>
           <div id="results"></div>
         </div>
       </div>
@@ -176,10 +191,11 @@
   <!-- Application Scripts -->
   <script src="static/js/config.local.js?v=1"></script>
   <script src="static/js/config.js?v=5"></script>
+  <script src="static/js/realtime-tracker.js?v=1"></script>
   <script src="static/js/map.js?v=2"></script>
   <script src="static/js/charts.js?v=4"></script>
   <script src="static/js/cards.js?v=2"></script>
-  <script src="static/js/chat.js?v=1"></script>
+  <script src="static/js/chat.js?v=2"></script>
   <script src="static/js/simulation.js?v=6"></script>
   <script src="static/js/export.js?v=2"></script>
   <script src="static/js/optimizer.js?v=3"></script>

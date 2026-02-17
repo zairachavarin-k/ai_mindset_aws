@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import boto3
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import os
 import logging
 import sys
@@ -14,6 +14,9 @@ import csv
 # Add mtsp module to path
 sys.path.append(os.path.dirname(__file__))
 from mtsp.index import solve_mtsp_from_coordinates
+
+# Import truck simulator
+from agents.truck_simulator import simulator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -67,7 +70,32 @@ def calculate_items_value(items: List[str]) -> float:
             if base_item in INVENTORY_PRICES:
                 total += INVENTORY_PRICES[base_item]
             else:
-                logger.warning(f"Item not found in inventory: {item}")
+                # Try matching by first 2-3 words (ignoring color suffix)
+                # Example: "Cámara Smart Mediumaquamarine" -> match "Cámara Smart"
+                words = base_item.split()
+                if len(words) >= 2:
+                    # Try matching first 2 words
+                    prefix_2 = ' '.join(words[:2])
+                    matched = False
+                    for inv_item, price in INVENTORY_PRICES.items():
+                        if inv_item.startswith(prefix_2):
+                            total += price
+                            matched = True
+                            break
+                    
+                    if not matched and len(words) >= 3:
+                        # Try matching first 3 words
+                        prefix_3 = ' '.join(words[:3])
+                        for inv_item, price in INVENTORY_PRICES.items():
+                            if inv_item.startswith(prefix_3):
+                                total += price
+                                matched = True
+                                break
+                    
+                    if not matched:
+                        logger.warning(f"Item not found in inventory: {item}")
+                else:
+                    logger.warning(f"Item not found in inventory: {item}")
     return total
 
 # Create data directory if it doesn't exist
@@ -125,6 +153,7 @@ class RouteExportRequest(BaseModel):
 async def optimize_waypoints(request: OptimizeRequest):
     """Optimize waypoint sequence using AWS Location Service"""
     try:
+        print("Oprsd")
         if geo_routes_client is None:
             raise HTTPException(status_code=500, detail="AWS geo-routes client not initialized. Check credentials.")
         
@@ -136,7 +165,7 @@ async def optimize_waypoints(request: OptimizeRequest):
             Destination=request.destination,
             Waypoints=[{"Position": wp} for wp in request.waypoints],
             TravelMode='Car',
-            OptimizeSequencingFor='FastestRoute'  # Changed from OptimizeFor
+            OptimizeSequencingFor='FastestRoute'
         )
         
         logger.info("Route optimization successful")
@@ -473,6 +502,7 @@ async def list_exports():
 
 class IncidentReport(BaseModel):
     truck_id: int
+    truck_positions: Optional[Dict[str, Dict]] = None  # Posiciones actuales de todos los camiones
 
 class UpdateDeliveryRequest(BaseModel):
     filename: str
@@ -482,21 +512,429 @@ class UpdateDeliveryRequest(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
+    session_id: str = "default"
+    truck_positions: dict = None  # Posiciones actuales del frontend
 
-@app.post("/chat")
-async def chat_endpoint(chat: ChatMessage):
-    """Handle chat messages from the frontend"""
+# Initialize multi-agent system with AgentCore (con memoria)
+from agents.agentcore_system import process_message as agentcore_process_message
+
+class ExplainSolutionRequest(BaseModel):
+    orchestration: Dict[str, Any]
+    metrics: Dict[str, Any]
+
+@app.post("/explain-incident-solution")
+async def explain_incident_solution(request: ExplainSolutionRequest):
+    """Generate LLM explanation for incident solution"""
     try:
-        logger.info(f"User: {chat.message}")
-        print(f"User: {chat.message}")
+        from openai import OpenAI
+        import os
+        
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        orch = request.orchestration
+        metrics = request.metrics
+        
+        # Extraer información relevante
+        selected_truck = orch['solution']['selected_truck']
+        incident_analysis = orch['solution']['incident_analysis']
+        inventory_check = orch['solution']['inventory_check']
+        selector_result = orch['steps'][2]['result']
+        alternatives = selector_result.get('alternatives', [])
+        evaluation_method = selector_result.get('evaluation_method', 'distance')
+        
+        # Construir información de alternativas
+        alternatives_text = ""
+        if alternatives:
+            for i, alt in enumerate(alternatives[:2], 1):
+                time_diff = alt.get('total_time_with_service_minutes', 0) - selected_truck.get('total_time_with_service_minutes', 0)
+                alternatives_text += f"\n{i}. {alt['truck_name']}: "
+                if alt.get('route_calculated'):
+                    alternatives_text += f"{alt['total_distance_km']:.1f} km, {alt['total_time_with_service_minutes']:.0f} min total ({time_diff:.0f} min más lento)"
+                else:
+                    alternatives_text += f"~{alt['total_time_with_service_minutes']:.0f} min estimados"
+        
+        prompt = f"""Eres un experto en logística y optimización de rutas. Explica de manera clara y concisa por qué esta es la mejor solución para el incidente.
+
+SITUACIÓN:
+- Camión con incidente: {incident_analysis['truck_name']}
+- Entregas pendientes: {incident_analysis['pending_deliveries']}
+- Valor en riesgo: ${metrics['pendingValue']:.0f} USD
+
+MÉTODO DE SELECCIÓN:
+El sistema evaluó TODOS los camiones disponibles calculando la ruta completa (incluyendo sus entregas actuales + las del incidente) y eligió el que minimiza el TIEMPO TOTAL de operación.
+
+SOLUCIÓN PROPUESTA:
+- Camión seleccionado: {selected_truck['truck_name']}
+- Tiempo total estimado: {selected_truck.get('total_time_with_service_minutes', metrics['additionalTime']):.0f} minutos
+- Distancia total: {selected_truck.get('total_distance_km', metrics['additionalDistance']):.1f} km
+- Destinos totales: {selected_truck.get('total_destinations', 'N/A')}
+- Entregas actuales del camión: {selected_truck.get('pending_deliveries', 0)}
+
+INVENTARIO:
+- Items disponibles: {metrics['availableItems']}/{metrics['totalItems']}
+- Valor recuperable: ${metrics['recoverableValue']:.0f} USD ({metrics['recoverableValue']/metrics['pendingValue']*100:.0f}%)
+
+ALTERNATIVAS EVALUADAS:{alternatives_text if alternatives_text else "\n(No hay alternativas disponibles)"}
+
+IMPORTANTE: El sistema NO eligió simplemente el camión más cercano al depósito, sino que calculó la ruta completa para cada camión (incluyendo todas sus entregas pendientes + las del incidente) y seleccionó el que completa TODO en el menor tiempo.
+
+Genera una explicación en español de 3-4 párrafos que:
+1. Explique que se evaluaron TODOS los camiones calculando rutas completas
+2. Justifique por qué este camión específicamente minimiza el tiempo total
+3. Compare con las alternativas mostrando cuánto tiempo se ahorraría
+4. Mencione los beneficios de aceptar (valor recuperable) vs rechazar (pérdida total)
+
+Usa un tono profesional pero accesible. Enfócate en los números clave y el ahorro de tiempo."""
+
+        response = client.chat.completions.create(
+            model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+            messages=[
+                {"role": "system", "content": "Eres un experto en logística que explica decisiones de optimización de manera clara y convincente."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        explanation = response.choices[0].message.content.strip()
+        
+        logger.info(f"Generated explanation for incident solution")
         
         return {
             "status": "success",
-            "message": "Message received",
-            "user_message": chat.message
+            "explanation": explanation
+        }
+        
+    except Exception as e:
+        logger.error(f"Explain solution error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/chat")
+async def chat_endpoint(chat: ChatMessage):
+    """Handle chat messages using OpenAI multi-agent system with memory"""
+    try:
+        logger.info(f"[Session: {chat.session_id}] User: {chat.message}")
+        
+        # Si el frontend envía posiciones actuales, actualizar el JSON
+        if chat.truck_positions:
+            update_route_json_with_positions(chat.truck_positions)
+        
+        # Process message through AgentCore with memory
+        response = agentcore_process_message(chat.message, chat.session_id)
+        
+        logger.info(f"Agent: {response.get('agent', 'Unknown')}")
+        logger.info(f"Response: {response.get('response', 'No response')[:100]}...")
+        
+        return {
+            "status": "success",
+            "agent": response.get('agent'),
+            "response": response.get('response'),
+            "data": response.get('data'),
+            "user_message": chat.message,
+            "session_id": chat.session_id
         }
     except Exception as e:
         logger.error(f"Chat error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+def update_route_json_with_positions(truck_positions: dict):
+    """
+    Actualiza el JSON de rutas con las posiciones actuales del frontend
+    
+    Args:
+        truck_positions: Dict con formato {truck_id: {lat, lng, currentStop, status, progress}}
+    """
+    try:
+        if not truck_positions:
+            logger.info("No truck positions provided, skipping update")
+            return
+            
+        route_files = sorted(DATA_DIR.glob("route_plan_*.json"), reverse=True)
+        if not route_files:
+            logger.warning("No route files found to update")
+            return
+        
+        latest_route = route_files[0]
+        with open(latest_route, 'r', encoding='utf-8') as f:
+            route_data = json.load(f)
+        
+        updated = False
+        
+        for route in route_data.get('routes', []):
+            truck_id = str(route['truck_id'])
+            
+            if truck_id in truck_positions:
+                frontend_data = truck_positions[truck_id]
+                current_stop_num = frontend_data.get('currentStop', 0)
+                
+                logger.info(f"Updating {route['truck_name']}: currentStop={current_stop_num}")
+                
+                # Actualizar el estado de las paradas según la posición actual
+                stops = route.get('stops', [])
+                for stop in stops:
+                    # Marcar como completadas todas las paradas hasta la actual
+                    if stop['stop_number'] <= current_stop_num and stop['stop_number'] > 0:
+                        if stop['status'] != 'completed':
+                            stop['status'] = 'completed'
+                            stop['actual_delivery_time'] = datetime.now().isoformat()
+                            updated = True
+                            logger.info(f"  ✓ Marked as completed: Stop {stop['stop_number']} - {stop['location']}")
+        
+        # Guardar cambios
+        if updated:
+            with open(latest_route, 'w', encoding='utf-8') as f:
+                json.dump(route_data, f, indent=2, ensure_ascii=False)
+            logger.info(f"✅ Route JSON updated with {len(truck_positions)} truck positions")
+        else:
+            logger.info(f"No changes needed for route JSON")
+        
+    except Exception as e:
+        logger.error(f"Error updating route JSON: {e}")
+        import traceback
+        traceback.print_exc()
+
+@app.post("/chat/clear-session")
+async def clear_chat_session(session_id: str = "default"):
+    """Clear conversation memory for a session"""
+    try:
+        from agents.agentcore_system import clear_session
+        clear_session(session_id)
+        logger.info(f"Cleared session: {session_id}")
+        return {
+            "status": "success",
+            "message": f"Session {session_id} cleared",
+            "session_id": session_id
+        }
+    except Exception as e:
+        logger.error(f"Clear session error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/chat/history/{session_id}")
+async def get_chat_history(session_id: str = "default"):
+    """Get conversation history for a session"""
+    try:
+        from agents.agentcore_system import get_session_history
+        history = get_session_history(session_id)
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "message_count": len(history),
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"Get history error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/simulator/start")
+async def start_simulator():
+    """Start the truck position simulator"""
+    try:
+        if simulator.running:
+            return {
+                "status": "already_running",
+                "message": "Simulator is already running"
+            }
+        
+        success = simulator.start()
+        if success:
+            return {
+                "status": "success",
+                "message": "Simulator started successfully",
+                "update_interval_seconds": simulator.update_interval,
+                "speed_kmh": simulator.speed_kmh
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to start simulator")
+    except Exception as e:
+        logger.error(f"Start simulator error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/simulator/stop")
+async def stop_simulator():
+    """Stop the truck position simulator"""
+    try:
+        simulator.stop()
+        return {
+            "status": "success",
+            "message": "Simulator stopped"
+        }
+    except Exception as e:
+        logger.error(f"Stop simulator error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/simulator/reset")
+async def reset_simulator():
+    """Reset simulator with latest route data"""
+    try:
+        success = simulator.reset()
+        if success:
+            return {
+                "status": "success",
+                "message": "Simulator reset successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to reset simulator")
+    except Exception as e:
+        logger.error(f"Reset simulator error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/simulator/status")
+async def get_simulator_status():
+    """Get simulator status and current positions"""
+    try:
+        return {
+            "status": "success",
+            "simulator_running": simulator.running,
+            "update_interval_seconds": simulator.update_interval,
+            "speed_kmh": simulator.speed_kmh,
+            "last_update": simulator.last_update.isoformat() if simulator.last_update else None,
+            "truck_count": len(simulator.current_positions),
+            "positions": simulator.get_current_positions() if simulator.running else {}
+        }
+    except Exception as e:
+        logger.error(f"Get simulator status error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/trucks/positions")
+async def get_truck_positions_endpoint():
+    """Get current truck positions (real-time if simulator is running)"""
+    try:
+        from agents.tools import get_truck_positions
+        positions = get_truck_positions()
+        return {
+            "status": "success",
+            "simulator_active": simulator.running,
+            "timestamp": datetime.now().isoformat(),
+            "truck_count": len(positions),
+            "positions": positions
+        }
+    except Exception as e:
+        logger.error(f"Get positions error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+class RedirectRequest(BaseModel):
+    target_location: str = "depot"  # "depot" o "custom"
+    custom_coords: Optional[List[float]] = None  # [lon, lat] si es custom
+    truck_id: Optional[int] = None  # Si se especifica, solo redirige ese camión
+
+@app.post("/redirect-trucks")
+async def redirect_trucks(request: RedirectRequest):
+    """
+    Redirige camiones a una ubicación específica
+    
+    Ejemplos:
+    - Todos al almacén: {"target_location": "depot"}
+    - Todos a ubicación custom: {"target_location": "custom", "custom_coords": [-99.15, 19.42]}
+    - Un camión específico: {"truck_id": 0, "target_location": "depot"}
+    """
+    try:
+        if not simulator.route_data:
+            raise HTTPException(status_code=400, detail="No hay datos de ruta cargados. Inicia el simulador primero.")
+        
+        # Redirigir un camión específico
+        if request.truck_id is not None:
+            if request.target_location == "depot":
+                result = simulator.redirect_single_truck(
+                    truck_id=request.truck_id,
+                    target_coords=[-99.1908, 19.4336],
+                    target_name="Depósito/Almacén"
+                )
+            elif request.target_location == "custom" and request.custom_coords:
+                result = simulator.redirect_single_truck(
+                    truck_id=request.truck_id,
+                    target_coords=request.custom_coords,
+                    target_name=f"Ubicación personalizada"
+                )
+            else:
+                raise HTTPException(status_code=400, detail="Ubicación objetivo no válida")
+        
+        # Redirigir todos los camiones
+        else:
+            result = simulator.redirect_all_trucks(
+                target_location=request.target_location,
+                custom_coords=request.custom_coords
+            )
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("message", "Error en la redirección"))
+        
+        logger.info(f"✓ Redirección exitosa: {result.get('message')}")
+        
+        return {
+            "status": "success",
+            **result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Redirect trucks error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+class RedirectRouteRequest(BaseModel):
+    origin: List[float]
+    destination: List[float]
+
+@app.post("/calculate-redirect-route")
+async def calculate_redirect_route(request: RedirectRouteRequest):
+    """
+    Calcula una ruta de redirección con geometría real usando AWS Location Service
+    
+    Args:
+        origin: [lng, lat] posición actual del camión
+        destination: [lng, lat] destino de redirección
+    
+    Returns:
+        Geometría de la ruta, distancia y duración
+    """
+    try:
+        if geo_routes_client is None:
+            raise HTTPException(status_code=500, detail="AWS geo-routes client not initialized")
+        
+        logger.info(f"Calculating redirect route from {request.origin} to {request.destination}")
+        
+        response = geo_routes_client.calculate_routes(
+            Origin=request.origin,
+            Destination=request.destination,
+            TravelMode='Car',
+            LegGeometryFormat='Simple'
+        )
+        
+        if not response or 'Routes' not in response or len(response['Routes']) == 0:
+            raise HTTPException(status_code=500, detail="No route found")
+        
+        route = response['Routes'][0]
+        
+        # Extraer geometría de todos los legs
+        geometry = []
+        total_distance = 0
+        total_duration = 0
+        
+        for leg in route.get('Legs', []):
+            total_distance += leg.get('Distance', 0)
+            total_duration += leg.get('DurationSeconds', 0)
+            
+            # Extraer puntos de geometría
+            leg_geometry = leg.get('Geometry', {})
+            if 'LineString' in leg_geometry:
+                for point in leg_geometry['LineString']:
+                    geometry.append(point)
+        
+        logger.info(f"Route calculated: {len(geometry)} points, {total_distance}m, {total_duration}s")
+        
+        return {
+            "status": "success",
+            "geometry": geometry,
+            "distance_meters": total_distance,
+            "duration_seconds": total_duration,
+            "distance_km": round(total_distance / 1000, 2),
+            "duration_minutes": round(total_duration / 60, 2)
+        }
+        
+    except Exception as e:
+        logger.error(f"Calculate redirect route error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/update-delivery-status")
@@ -553,20 +991,99 @@ async def update_delivery_status(update: UpdateDeliveryRequest):
 
 @app.post("/report-incident")
 async def report_incident(report: IncidentReport):
-    """Report an incident for a specific truck"""
+    """Report an incident for a specific truck and orchestrate solution"""
     try:
         truck_num = report.truck_id + 1  # Convert 0-based to 1-based
-        logger.info(f"Incident in truck {truck_num}")
+        logger.info(f"🚨 Incident reported for truck {truck_num}")
+        
+        # Generate incident report using tools
+        from agents.tools import generate_incident_report, get_truck_positions
+        
+        # Get current positions (from frontend if provided, otherwise from tools)
+        if report.truck_positions:
+            logger.info(f"📍 Using truck positions from frontend: {len(report.truck_positions)} trucks")
+            # Actualizar el JSON con las posiciones del frontend
+            update_route_json_with_positions(report.truck_positions)
+        
+        truck_positions = get_truck_positions()
+        location_coords = None
+        if report.truck_id in truck_positions:
+            location_coords = truck_positions[report.truck_id]['position']
+        
+        # Generate detailed incident report
+        incident_data = generate_incident_report(
+            truck_id=report.truck_id,
+            incident_type='accident',
+            description=f"Incident reported for truck {truck_num}",
+            location=location_coords
+        )
+        
+        # Update route JSON to mark truck as having incident
+        update_route_json_with_incident(report.truck_id, incident_data)
+        
+        logger.info(f"✓ Incident report created: {incident_data.get('incident_id', 'N/A')}")
+        
+        # 🚨 Activar orquestador de incidentes
+        logger.info(f"🚨 Activating incident orchestrator...")
+        from agents.incident_orchestrator import orchestrate_incident_response
+        
+        orchestration_result = orchestrate_incident_response(incident_data)
+        
+        logger.info(f"✓ Orchestration completed: {'SUCCESS' if orchestration_result.get('success') else 'FAILED'}")
         
         return {
             "status": "success",
-            "message": f"Incident in truck {truck_num}",
+            "message": f"Incident reported for truck {truck_num}",
             "truck_id": report.truck_id,
-            "timestamp": datetime.now().isoformat()
+            "incident_id": incident_data.get('incident_id'),
+            "timestamp": datetime.now().isoformat(),
+            "incident_data": incident_data,
+            "orchestration": orchestration_result
         }
     except Exception as e:
         logger.error(f"Incident report error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+def update_route_json_with_incident(truck_id: int, incident_data: dict):
+    """
+    Actualiza el JSON de rutas para marcar un camión con incidente
+    """
+    try:
+        route_files = sorted(DATA_DIR.glob("route_plan_*.json"), reverse=True)
+        if not route_files:
+            logger.warning("No route files found to update")
+            return
+        
+        latest_route = route_files[0]
+        with open(latest_route, 'r', encoding='utf-8') as f:
+            route_data = json.load(f)
+        
+        # Encontrar la ruta del camión y marcarla con incidente
+        for route in route_data.get('routes', []):
+            if route['truck_id'] == truck_id:
+                route['status'] = 'incident'
+                route['incident'] = {
+                    'incident_id': incident_data.get('incident_id'),
+                    'type': incident_data.get('incident_type'),
+                    'description': incident_data.get('description'),
+                    'timestamp': incident_data.get('timestamp'),
+                    'location': incident_data.get('location'),
+                    'recovery_time_minutes': incident_data.get('incident_summary', {}).get('recovery_time_minutes', 13)
+                }
+                logger.info(f"✓ Marked {route['truck_name']} with incident status")
+                break
+        
+        # Guardar cambios
+        with open(latest_route, 'w', encoding='utf-8') as f:
+            json.dump(route_data, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"✅ Route JSON updated with incident for truck {truck_id}")
+        
+    except Exception as e:
+        logger.error(f"Error updating route JSON with incident: {e}")
 
 if __name__ == "__main__":
     import uvicorn

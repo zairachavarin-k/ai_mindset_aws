@@ -44,3 +44,9 @@ logs/
 dist/
 build/
 *.egg-info/
+
+# AgentCore
+agents/.venv/
+agents/.bedrock_agentcore.yaml
+agents/bedrock_agentcore.yaml
+.bedrock_agentcore/

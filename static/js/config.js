@@ -3,7 +3,7 @@
 // IMPORTANT: Before deploying, set your API key in config.local.js
 // Copy config.local.example.js to config.local.js and add your key
 var CONFIG = {
-  apiKey: "",
+  apiKey: "v1.public.eyJqdGkiOiI4MWJkNzI1Ni04ZDYyLTQ1MzQtOTRhOS04NDA0OWNlMGFmOGIifUb3xUrPxp_yMl_ffrQkLNyj2zcg29N06kkds_aTmiSHlqpVkS-ZmYGiK-Eo5P1VrFf8_o48uSC_5yO0-51LEnvye94J79FTYvruBHEQKhM77-YxfDXngUms5AbYQU_Ok8-qu_j_6cd4mbUD66TM92tjsob98WKnACm1XxW03ipXspQvJld4rHo83QD1u6bUJVODKE0MHPrwYRbxXbnyjS-Wb359ZGsQMIpRiIXzcKsuApJn6_sYu4_tkcfzU1xxB1-QvQ7NL3mIB3t8dULQvm1mljGMFklNtaC1yNF_Vm2RXlty-BGa_RGHSEUfIfIn0NLwi9ZQSrYHYpYSu1HaxfU.ZWU0ZWIzMTktMWRhNi00Mzg0LTllMzYtNzlmMDU3MjRmYTkx",
   region: "us-east-1",
   style: "Monochrome",
   colorScheme: "Dark",

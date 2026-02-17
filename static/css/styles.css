@@ -506,6 +506,20 @@ button:disabled {
   align-self: flex-start;
 }
 
+.data-message {
+  align-self: flex-start;
+  max-width: 90%;
+}
+
+.agent-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a8ba8;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .message-content {
   padding: 10px 14px;
   border-radius: 12px;
@@ -524,6 +538,40 @@ button:disabled {
   background: #3a3a3a;
   color: #ddd;
   border-bottom-left-radius: 4px;
+}
+
+/* Typing indicator */
+.typing-indicator .message-content {
+  display: flex;
+  gap: 4px;
+  padding: 10px 14px;
+}
+
+.typing-indicator .dot {
+  width: 8px;
+  height: 8px;
+  background: #888;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
 }
 
 .chat-input-container {

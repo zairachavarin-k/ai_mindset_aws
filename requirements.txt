@@ -4,3 +4,5 @@ boto3
 pydantic
 pulp
 numpy
+openai
+python-dotenv
